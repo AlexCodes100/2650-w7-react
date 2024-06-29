@@ -7,6 +7,7 @@ import cookieParser from "cookie-parser";
 import logger from "morgan";
 import indexRouter from "./routes/index.js";
 import notesRouter from "./routes/notes.js";
+import cors from "cors";
 
 // Constants
 const port = process.env.PORT || 3000;
@@ -15,16 +16,17 @@ const port = process.env.PORT || 3000;
 const app = express();
 
 // view engine setup
-app.set("views", path.join("views"));
-app.set("view engine", "pug");
+// app.set("views", path.join("views"));
+// app.set("view engine", "pug");
 
 app.use(logger("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-app.use(express.static(path.join("public")));
+app.use(cors());
+// app.use(express.static(path.join("public")));
 
-app.use("/", indexRouter);
+// app.use("/", indexRouter);
 
 // Add notes router
 app.use("/notes", notesRouter);
@@ -40,9 +42,11 @@ app.use(function (err, req, res, next) {
   res.locals.message = err.message;
   res.locals.error = req.app.get("env") === "development" ? err : {};
 
-  // render the error page
-  res.status(err.status || 500);
-  res.render("error");
+  // return the error in JSON format
+  res.status(err.status || 500).json({
+    message: err.message,
+    error: req.app.get("env") === "development" ? err : {},
+  });
 });
 
 // Start http server

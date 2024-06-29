@@ -2,6 +2,7 @@ import express from 'express';
 import { addNote } from '../persistence.js';
 import { removeNote } from '../persistence.js';
 import { updateNote } from '../persistence.js';
+import { getNotes } from '../persistence.js';
 
 const router = express.Router();
 
@@ -29,6 +30,11 @@ router.put('/:id', (req, res) => {
     console.log('Updating note with ID:', noteId);
     const updatedNote = updateNote(noteId, text);
     res.status(200).send(updatedNote);
+});
+
+router.get('/', (req, res) => {
+    const notes = getNotes();
+    res.status(200).json(notes);
 });
 
 export default router;

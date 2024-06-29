@@ -32,4 +32,7 @@ const updateNote = (id, newText) => {
     return _notes.find(note => note.id === id);
 };
 
-export { notes, addNote, removeNote, updateNote};
+// Retrieve all notes
+const getNotes = () => _notes;
+
+export { notes, addNote, removeNote, updateNote, getNotes};
