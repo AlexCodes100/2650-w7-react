@@ -1,8 +1,8 @@
 import { v4 as uuidv4 } from "uuid";
 
 let _notes = [
-  { id: "2", text: "CPSC 2650" },
-  { id: "1", text: "An awesome web dev Note" },
+  { id: uuidv4(), text: "CPSC 2650", imageUrl: '', imageAuthor: '', imageAuthorLink: '' },
+  { id: uuidv4(), text: "An awesome web dev Note", imageUrl: '', imageAuthor: '', imageAuthorLink: '' },
 ];
 
 // TODO: implement addNote and removeNote
@@ -11,12 +11,15 @@ const notes = () => _notes;
 
 // Add a note
 const addNote = (note) => {
-    const newNote = {
-        id: uuidv4(),
-        text: note.text
-    };
+  const newNote = {
+    id: uuidv4(),
+    text: note.text,
+    imageUrl: '',
+    imageAuthor: '',
+    imageAuthorLink: ''
+  };
   _notes.push(newNote);
-  console.log(_notes)
+  return newNote;
 };
 
 // Remove a note
@@ -26,13 +29,15 @@ const removeNote = (id) => {
 };
 
 // Update a note
-const updateNote = (id, newText) => {
-    _notes = _notes.map(note => note.id === id ? { ...note, text: newText } : note);
-    console.log(_notes);
-    return _notes.find(note => note.id === id);
+const updateNote = (id, newText, imageUrl = '', imageAuthor = '', imageAuthorLink = '') => {
+  _notes = _notes.map(note => note.id === id ? { ...note, text: newText, imageUrl, imageAuthor, imageAuthorLink } : note);
+  return _notes.find(note => note.id === id);
 };
 
 // Retrieve all notes
 const getNotes = () => _notes;
 
-export { notes, addNote, removeNote, updateNote, getNotes};
+// Retrieve one note
+const getNote = (id) => _notes.find(note => note.id === id);
+
+export { notes, addNote, removeNote, updateNote, getNotes, getNote};
