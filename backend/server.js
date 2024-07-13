@@ -1,55 +1,58 @@
 import "dotenv/config.js";
-
-import createError from "http-errors";
 import express from "express";
+import { ApolloServer } from "apollo-server-express";
+import createError from "http-errors";
 import path from "path";
 import cookieParser from "cookie-parser";
 import logger from "morgan";
+import cors from "cors";
+import { typeDefs, resolvers } from "./graphql/schema.js";
 import indexRouter from "./routes/index.js";
 import notesRouter from "./routes/notes.js";
-import cors from "cors";
 
-// Constants
 const port = process.env.PORT || 3000;
 
-// Create http server
 const app = express();
-
-// view engine setup
-// app.set("views", path.join("views"));
-// app.set("view engine", "pug");
 
 app.use(logger("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+// Configure CORS
 app.use(cors());
-// app.use(express.static(path.join("public")));
 
-// app.use("/", indexRouter);
+// Log incoming requests
+app.use((req, res, next) => {
+  console.log(`Received ${req.method} request for ${req.url}`);
+  next();
+});
 
-// Add notes router
+// Use routers
 app.use("/notes", notesRouter);
 
-// catch 404 and forward to error handler
-app.use(function (req, res, next) {
-  next(createError(404));
-});
+// Initialize Apollo Server
+const server = new ApolloServer({ typeDefs, resolvers });
 
-// error handler
-app.use(function (err, req, res, next) {
-  // set locals, only providing error in development
-  res.locals.message = err.message;
-  res.locals.error = req.app.get("env") === "development" ? err : {};
+server.start().then(() => {
+  server.applyMiddleware({ app, path: '/graphql' });
 
-  // return the error in JSON format
-  res.status(err.status || 500).json({
-    message: err.message,
-    error: req.app.get("env") === "development" ? err : {},
+  app.use(function (req, res, next) {
+    next(createError(404));
   });
-});
 
-// Start http server
-app.listen(port, () => {
-  console.log(`Server started at http://localhost:${port}`);
+  app.use(function (err, req, res, next) {
+    res.locals.message = err.message;
+    res.locals.error = req.app.get("env") === "development" ? err : {};
+
+    res.status(err.status || 500).json({
+      message: err.message,
+      error: req.app.get("env") === "development" ? err : {},
+    });
+  });
+
+  app.listen(port, () => {
+    console.log(`Server started at http://localhost:${port}`);
+    console.log(`GraphQL endpoint at http://localhost:${port}${server.graphqlPath}`);
+  });
 });

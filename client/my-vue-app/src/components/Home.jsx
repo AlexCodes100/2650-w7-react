@@ -1,57 +1,74 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import './Home.css';
 import { Link } from 'react-router-dom';
+import { useQuery, useMutation, gql } from '@apollo/client';
+
+const GET_NOTES = gql`
+  query GetNotes {
+    notes {
+      id
+      text
+      imageUrl
+      imageAuthor
+      imageAuthorLink
+    }
+  }
+`;
+
+const ADD_NOTE = gql`
+  mutation AddNote($text: String!) {
+    addNote(text: $text) {
+      id
+      text
+      imageUrl
+      imageAuthor
+      imageAuthorLink
+    }
+  }
+`;
+
+const DELETE_NOTE = gql`
+  mutation DeleteNote($id: String!) {
+    removeNote(id: $id)
+  }
+`;
 
 function Home() {
-  const [notes, setNotes] = useState([]);
+  const { loading, error, data, refetch } = useQuery(GET_NOTES);
+  const [addNote] = useMutation(ADD_NOTE);
+  const [deleteNote] = useMutation(DELETE_NOTE);
+
   const [newNote, setNewNote] = useState('');
 
-  useEffect(() => {
-    fetchNotes();
-  }, []);
-
-  const fetchNotes = () => {
-    fetch('http://localhost:3000/notes')
-      .then(response => response.json())
-      .then(data => {
-        console.log('Fetched notes:', data);
-        setNotes(data);
-      })
-      .catch(error => console.error('Error fetching notes:', error));
-  };
-
-  const handleDelete = (id) => {
-    fetch(`http://localhost:3000/notes/${id}`, {
-      method: 'DELETE',
-    })
-      .then(() => setNotes(notes.filter(note => note.id !== id)))
-      .catch(error => console.error('Error deleting note:', error));
-  };
+  if (loading) return <p>Loading...</p>;
+  if (error) return <p>Error fetching notes: {error.message}</p>;
 
   const handleAdd = () => {
     if (newNote.trim()) {
-      fetch('http://localhost:3000/notes', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ noteText: newNote }),
-      })
-        .then(response => response.json())
-        .then(note => {
-          console.log('Added note:', note); 
-          fetchNotes();
-        })
-        .catch(error => console.error('Error adding note:', error));
-      setNewNote('');
+      addNote({
+        variables: { text: newNote },
+        onCompleted: () => {
+          setNewNote('');
+          refetch();
+        }
+      });
     }
+  };
+
+  const handleDelete = (id) => {
+    deleteNote({
+      variables: { id },
+      onCompleted: () => {
+        refetch();
+      }
+    });
   };
 
   return (
     <div className="home">
       <h2>Home</h2>
       <ul>
-        {notes.map((note) => (
+        {data.notes.map((note) => (
           <li key={note.id}>
           <Link to={`/notes/${note.id}`}>{note.text}</Link>
           <button className="delete-button" onClick={() => handleDelete(note.id)}>Delete</button>

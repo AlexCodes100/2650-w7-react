@@ -1,87 +1,118 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import "./EditNote.css";
+import { useQuery, useLazyQuery, useMutation, gql } from "@apollo/client";
+
+const GET_NOTE = gql`
+  query GetNote($id: String!) {
+    note(id: $id) {
+      id
+      text
+      imageUrl
+      imageAuthor
+      imageAuthorLink
+    }
+  }
+`;
+
+const UPDATE_NOTE = gql`
+  mutation UpdateNote($id: String!, $text: String!, $imageUrl: String, $imageAuthor: String, $imageAuthorLink: String) {
+    updateNote(id: $id, text: $text, imageUrl: $imageUrl, imageAuthor: $imageAuthor, imageAuthorLink: $imageAuthorLink) {
+      id
+      text
+      imageUrl
+      imageAuthor
+      imageAuthorLink
+    }
+  }
+`;
+
+const FETCH_IMAGE = gql`
+  query FetchImage($query: String!) {
+    fetchImage(query: $query) {
+      urls {
+        regular
+      }
+      user {
+        name
+        links {
+          html
+        }
+      }
+    }
+  }
+`;
 
 function EditNote() {
   const { id } = useParams();
   const [noteText, setNoteText] = useState("");
-  const [originalNoteText, setOriginalNoteText] = useState("");
+  // const [originalNoteText, setOriginalNoteText] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [imageAuthor, setImageAuthor] = useState("");
   const [imageAuthorLink, setImageAuthorLink] = useState("");
 
+  const { loading, error, data } = useQuery(GET_NOTE, { variables: { id } });
+  const [updateNote] = useMutation(UPDATE_NOTE);
+  const [fetchImage, { data: imageData }] = useLazyQuery(FETCH_IMAGE);
+
   useEffect(() => {
-    fetch(`http://localhost:3000/notes/${id}`)
-      .then((response) => response.json())
-      .then((data) => {
-        if (data) {
-          setNoteText(data.text || "");
-          setOriginalNoteText(data.text || "");
-          setImageUrl(data.imageUrl || "");
-          setImageAuthor(data.imageAuthor || "");
-          setImageAuthorLink(data.imageAuthorLink || "");
-        }
-      })
-      .catch((error) => console.error("Error fetching note:", error));
-  }, [id]);
+    if (data && data.note) {
+      setNoteText(data.note.text);
+      setImageUrl(data.note.imageUrl);
+      setImageAuthor(data.note.imageAuthor);
+      setImageAuthorLink(data.note.imageAuthorLink);
+    }
+  }, [data]);
+
+  useEffect(() => {
+    if (imageData && imageData.fetchImage) {
+      const fetchedImage = imageData.fetchImage;
+      const updatedImageUrl = fetchedImage.urls.regular;
+      const updatedImageAuthor = fetchedImage.user.name;
+      const updatedImageAuthorLink = fetchedImage.user.links.html;
+      setImageUrl(updatedImageUrl);
+      setImageAuthor(updatedImageAuthor);
+      setImageAuthorLink(updatedImageAuthorLink);
+      handleUpdate(updatedImageUrl, updatedImageAuthor, updatedImageAuthorLink);
+    }
+  }, [imageData]);
+
+  if (loading) return <p>Loading...</p>;
+  if (error) return <p>Error :(</p>;
 
   const handleUpdate = (updatedImageUrl, updatedImageAuthor, updatedImageAuthorLink) => {
-    const updatedNote = {
-      text: noteText,
-      imageUrl: updatedImageUrl || imageUrl,
-      imageAuthor: updatedImageAuthor || imageAuthor,
-      imageAuthorLink: updatedImageAuthorLink || imageAuthorLink,
-    };
-
-    console.log('Updating note with:', updatedNote);
-
-    fetch(`http://localhost:3000/notes/${id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
+    updateNote({
+      variables: {
+        id,
+        text: noteText,
+        imageUrl: updatedImageUrl || imageUrl,
+        imageAuthor: updatedImageAuthor || imageAuthor,
+        imageAuthorLink: updatedImageAuthorLink || imageAuthorLink
       },
-      body: JSON.stringify(updatedNote),
-    })
-      .then(response => response.json())
-      .then(updatedNote => {
-        setOriginalNoteText(updatedNote.text);
-        setImageUrl(updatedNote.imageUrl);
-        setImageAuthor(updatedNote.imageAuthor);
-        setImageAuthorLink(updatedNote.imageAuthorLink);
-      })
-      .catch(error => console.error('Error updating note:', error));
+      onCompleted: () => {
+        console.log("Note updated");
+      }
+    });
   };
 
-
-  const fetchImage = () => {
+  const fetchImageHandler = () => {
     if (noteText.trim()) {
-      fetch(`http://localhost:3000/notes/unsplash/${noteText}`)
-        .then(response => response.json())
-        .then(data => {
-          console.log('Fetched image data:', data); 
-          if (data && data.urls && data.user) {
-            const updatedImageUrl = data.urls.regular;
-            const updatedImageAuthor = data.user.name;
-            const updatedImageAuthorLink = data.user.links.html;
-            handleUpdate(updatedImageUrl, updatedImageAuthor, updatedImageAuthorLink);
-          }
-        })
-        .catch(error => console.error('Error fetching image:', error));
+      fetchImage({ variables: { query: noteText } });
     } else {
-      console.warn('Note text is empty. Cannot fetch image.');
+      console.warn("Note text is empty. Cannot fetch image.");
     }
   };
 
   return (
     <div className="edit-note">
-      <h1>Note: {originalNoteText} </h1>
+      <h1>Note: {noteText} </h1>
       <h2>Note ID: {id}</h2>
       <input
         type="text"
         value={noteText || ""}
         onChange={(e) => setNoteText(e.target.value)}
       />
-      <button onClick={fetchImage} disabled={!noteText.trim()}>
+      <button onClick={fetchImageHandler} disabled={!noteText.trim()}>
         Generate Image!
       </button>
       {imageUrl && (
